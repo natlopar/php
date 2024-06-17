@@ -1,0 +1,20 @@
+{
+    "name": "root/www",
+    "description": "php 8",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Root\\Www\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Nat", 
+            "email": "nat@example.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "phpunit/phpunit": "^9.5"
+    }
+}
