@@ -1,54 +1,62 @@
 <?php
+const API_URL = "https://jsonplaceholder.typicode.com/comments";
+//Inicializar nueva sesión de cURL; ch = cURL handle
+$ch = curl_init(API_URL);
 
-function getCommentsApi($trackingId) {
-    $url = "http://api.example.com/comments?tracking_id=" . urlencode($trackingId);
+//Indicar que queremos recibir el resultado de la petición en string y no mostrarla en pantalla
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $url);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($curl);
-    curl_close($curl);
+//Ejecutar la petición y guardamos el resultado.
+$result = curl_exec($ch);
+//aquí podría buscar el codigo http para ver los errores.
 
-    $comments = json_decode($response, true);
-    return $comments;
+if ($result === false) {
+    echo "cURL Error: " . curl_error($ch);
+    curl_close($ch);
+    exit;
 }
 
-try {
+// Obtener el código HTTP de la respuesta
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+if ($httpCode !== 200) {
+    echo "HTTP Error: " . $httpCode;
+    curl_close($ch);
+    exit;
+}
 
-    include('select_null.php');
+//otra alternativa de llamar a api es $result = file_get_contents(API_URL). solo para gets
+$data = json_decode($result, true); //con esto lo guardamos en un array asociativo.
 
-    if (is_array($orders) && !empty($orders)) {
-        foreach ($orders as $order) {
-            $orderId = $order['id'];
-            $trackingId = $order['tracking_id'];
-            try {           
-                $comments = getCommentsApi($trackingId);
-                foreach ($comments as $comment) {
-                    $name = isset($comment['name']) ? $comment['name'] : null;
-                    $email = isset($comment['email']) ? $comment['email'] : null;
-                    $commentText = isset($comment['comment']) ? $comment['comment'] : null;
+// var_dump($data);
 
-    
-                    $sqlInsert = "INSERT INTO comments (order_id, name, email, comment) VALUES (:order_id, :name, :email, :comment)";
-                    $stmtInsert = $conn->prepare($sqlInsert);
-                    $stmtInsert->bindParam(':order_id', $orderId, PDO::PARAM_INT);
-                    $stmtInsert->bindParam(':name', $name, PDO::PARAM_STR);
-                    $stmtInsert->bindParam(':email', $email, PDO::PARAM_STR);
-                    $stmtInsert->bindParam(':comment', $commentText, PDO::PARAM_STR);
-                    $stmtInsert->execute();
+curl_close($ch);
+// Verificar si hubo errores al decodificar el JSON
+if (json_last_error() !== JSON_ERROR_NONE) {
+    echo "JSON Decode Error: " . json_last_error_msg();
+    exit;
+}
+include('select_null.php');
 
-                    echo "Comentario insertado para Pedido ID: " . $orderId . "\n";
-                }
-            } catch (Exception $e) {
-                echo "Error al obtener comentarios para Pedido ID: " . $orderId . ": " . $e->getMessage() . "\n";
-                error_log("Error al obtener comentarios para Pedido ID: " . $orderId . ": " . $e->getMessage());
-            }
-        }
+
+
+foreach ($data as $comment) {
+    $newComment = $comment['body'];
+    $email = $comment['email'];
+    $name = $comment['name'];
+    $id = $comment['id'];
+
+    $updateSql = "UPDATE comments SET name = :name, email = :email, comment = :comment WHERE id = :id";
+    $updateStmt = $conn->prepare($updateSql);
+    $updateStmt->bindParam(':name', $name);
+    $updateStmt->bindParam(':email', $email);
+    $updateStmt->bindParam(':comment', $newComment);
+    $updateStmt->bindParam(':id', $id);
+
+    if ($updateStmt->execute()) {
+        echo "Comentario actualizado para el pedido ID: $id\n";
     } else {
-        echo "No hay pedidos con comentarios vacíos.\n";
+        echo "Error al actualizar comentario para el pedido ID: $id\n";
     }
-} catch (PDOException $e) {
-    echo "Error al obtener pedidos con comentarios vacíos: " . $e->getMessage() . "\n";
-    error_log("Error al obtener pedidos con comentarios vacíos: " . $e->getMessage());
 }
+
 ?>
